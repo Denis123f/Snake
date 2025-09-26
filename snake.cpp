@@ -133,7 +133,7 @@ class Board_Game{
 
 public:
     Board_Game() 
-    : window(sf::VideoMode({900, 600}), "Snake"), apple(Radius-15.f), texture("png/body.png")
+    : window(sf::VideoMode({900, 600}), "Snake"), apple(Radius-15.f), texture("textures/baseHead.png")
       //polyana("png/1672015093_31-7fon-club-p-fon-dlya-igri-tanchiki-vid-sverkhu-41.jpg")
       {
 
