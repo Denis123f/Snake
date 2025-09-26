@@ -1,0 +1,83 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # позволяет запускать вручную
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # ========== LINUX ==========
+    - name: Install SFML (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsfml-dev
+
+    # ========== WINDOWS ==========
+    - name: Setup MinGW (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: egor-tensin/setup-mingw@v2
+      with:
+        version: 13.2.0
+
+    - name: Download SFML (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        curl -L https://www.sfml-dev.org/files/SFML-2.6.1-windows-gcc-13.2.0-mingw-64-bit.zip -o sfml.zip
+        7z x sfml.zip
+        echo "SFML_DIR=$(pwd)/SFML-2.6.1" >> $GITHUB_ENV
+
+    # ========== MACOS ==========
+    - name: Install SFML (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install sfml
+
+    # ========== СБОРКА ==========
+    - name: Compile (Linux/macOS)
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      run: |
+        g++ -std=c++17 main.cpp -lsfml-graphics -lsfml-window -lsfml-system -o snake
+
+    - name: Compile (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        g++ -std=c++17 main.cpp -I${{ env.SFML_DIR }}/include -L${{ env.SFML_DIR }}/lib -lsfml-graphics -lsfml-window -lsfml-system -o snake.exe
+
+    # ========== УПАКОВКА ==========
+    - name: Prepare Artifacts (Linux/macOS)
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      run: |
+        mkdir -p snake_app
+        cp snake body.png snake_app/
+        tar -czf snake-${{ matrix.os }}.tar.gz snake_app
+
+    - name: Prepare Artifacts (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir snake_app
+        copy snake.exe snake_app\
+        copy body.png snake_app\
+        copy "${{ env.SFML_DIR }}\bin\sfml-graphics-2.dll" snake_app\
+        copy "${{ env.SFML_DIR }}\bin\sfml-window-2.dll" snake_app\
+        copy "${{ env.SFML_DIR }}\bin\sfml-system-2.dll" snake_app
+        tar -czf snake-windows.tar.gz snake_app
+
+    # ========== ЗАГРУЗКА АРТЕФАКТОВ ==========
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: snake-${{ matrix.os }}
+        path: snake-*.tar.gz
